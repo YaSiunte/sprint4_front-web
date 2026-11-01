@@ -77,7 +77,7 @@ A equipe utilizou o OpenAI Codex como apoio para planejar a estrutura em React, 
 
 ## Deploy
 
-- Deploy na Vercel: **preencher com a URL após a publicação**
+- Deploy na Vercel: https://sprint4front-web-navy.vercel.app/
 
 ## Integrantes
 
