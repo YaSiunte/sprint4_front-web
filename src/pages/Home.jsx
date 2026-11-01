@@ -1,3 +1,5 @@
+import { Link } from 'react-router-dom'
+
 const images = import.meta.glob('../img/*', {
   eager: true,
   query: '?url',
@@ -66,6 +68,11 @@ function Home() {
               O objetivo é reduzir a perda de informações causada por fotos difíceis de visualizar ou mal registradas, tornando o processo de captura e revisão dos conteúdos mais eficiente para o estudante.
             </p>
           </article>
+        </div>
+        <div className="flex justify-center py-6">
+          <Link to="/app" className="btn mt-1!">
+            Testar a câmera
+          </Link>
         </div>
       </section>
 

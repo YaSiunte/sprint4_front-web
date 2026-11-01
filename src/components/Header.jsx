@@ -21,7 +21,7 @@ function Header() {
         <Link to="/equipe">
           Nossa equipe<span />
         </Link>
-        <a href="/#contato">
+        <a href="#contato">
           Contato<span />
         </a>
         <Link
