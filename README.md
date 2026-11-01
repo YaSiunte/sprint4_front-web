@@ -1,16 +1,84 @@
-# React + Vite
+# NextWave — Sprint 4
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Evolução do projeto da Sprint 3 para React. A NextWave apresenta a Jovi Smart Camera, uma demonstração de captura e organização de imagens de aula por matéria.
 
-Currently, two official plugins are available:
+## Tecnologias utilizadas
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+- React e JavaScript
+- Vite
+- React Router
+- Tailwind CSS
+- CSS original da Sprint 3
+- API mockada local
 
-## React Compiler
+## Requisitos
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+- Node.js e npm
+- Navegador atualizado
 
-## Expanding the ESLint configuration
+## Instalação e execução
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+Na pasta raiz do projeto, onde está o arquivo `package.json`, instale as dependências:
+
+```bash
+npm install
+```
+
+Inicie o servidor de desenvolvimento:
+
+```bash
+npm run dev
+```
+
+Abra no navegador o endereço indicado pelo Vite, normalmente `http://localhost:5173`.
+
+## Funcionalidades
+
+- Páginas responsivas para desktop, tablet e celular.
+- Rotas públicas para a página inicial, galeria e equipe.
+- Rota privada para a câmera.
+- Envio de imagem com prévia e feedback demonstrativo.
+- Organização das capturas por matéria, incluindo matérias personalizadas.
+- Salvamento local das matérias e imagens no navegador.
+
+## Rotas
+
+- `/` — página inicial
+- `/galeria` — galeria
+- `/equipe` — integrantes
+- `/entrar` — entrada demonstrativa
+- `/app` — câmera e biblioteca de capturas, protegida por rota privada
+
+## API e armazenamento
+
+A API mockada em `src/services/mockApi.js` simula respostas para o feedback da câmera e para a lista de matérias. A pontuação é demonstrativa: não mede nitidez ou iluminação de verdade, e as imagens não são enviadas a um servidor.
+
+As capturas e matérias personalizadas ficam no `localStorage` do navegador utilizado. Não há back-end ou servidor adicional para iniciar.
+
+## Acesso de teste
+
+Na tela de entrada, informe qualquer nome. A demonstração não possui senha nem autenticação real.
+
+## Organização do código
+
+- `src/components` — cabeçalho, rodapé e proteção de rota.
+- `src/context` — estado compartilhado da sessão demonstrativa.
+- `src/hooks` — hook `useCapture`, que separa a lógica da câmera da interface.
+- `src/pages` — páginas React.
+- `src/services` — API mockada.
+- `src/css/estilo.css` — estilos originais da Sprint 3.
+- `src/img` — imagens do projeto.
+
+O projeto utiliza componentes React, props, hooks nativos (`useState` e `useEffect`), o hook personalizado `useCapture` e rotas públicas e privadas.
+
+## Uso de inteligência artificial
+
+A equipe utilizou o OpenAI Codex como apoio para planejar a estrutura em React, organizar componentes, rotas e implementar a API. A equipe revisou e adaptou as sugestões ao projeto da Sprint 3.
+
+## Deploy
+
+- Deploy na Vercel: **preencher com a URL após a publicação**
+
+## Integrantes
+
+Consulte `INTEGRANTES.TXT` para os nomes completos e RMs dos integrantes.
