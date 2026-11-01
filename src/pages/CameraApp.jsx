@@ -1,32 +1,19 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext.jsx'
 import { useCapture } from '../hooks/useCapture.js'
 import { getSubjects } from '../services/mockApi.js'
 
-function imageToDataUrl(imageUrl) {
-  return new Promise((resolve, reject) => {
-    const image = new Image()
-
-    image.onload = () => {
-      const scale = Math.min(1, 1200 / image.width, 1200 / image.height)
-      const canvas = document.createElement('canvas')
-      canvas.width = Math.round(image.width * scale)
-      canvas.height = Math.round(image.height * scale)
-      canvas.getContext('2d').drawImage(image, 0, 0, canvas.width, canvas.height)
-
-      resolve(canvas.toDataURL('image/jpeg', 0.75))
-    }
-
-    image.onerror = reject
-    image.src = imageUrl
-  })
-}
-
 function CameraApp() {
   const { user, logout } = useAuth()
   const { result, loading, analyze } = useCapture()
 
+  const videoRef = useRef(null)
+  const canvasRef = useRef(null)
+  const streamRef = useRef(null)
+
+  const [cameraActive, setCameraActive] = useState(false)
+  const [cameraError, setCameraError] = useState('')
   const [subjects, setSubjects] = useState([])
   const [subject, setSubject] = useState('')
   const [newSubject, setNewSubject] = useState('')
@@ -47,29 +34,97 @@ function CameraApp() {
       ]
 
       setSubjects(allSubjects)
-      setSubject(allSubjects[0])
+      setSubject(allSubjects[0] || '')
     })
   }, [])
 
   useEffect(() => {
     return () => {
-      if (preview.startsWith('blob:')) {
-        URL.revokeObjectURL(preview)
-      }
+      streamRef.current?.getTracks().forEach((track) => track.stop())
     }
-  }, [preview])
+  }, [])
 
-  function handleFileChange(event) {
-    const selectedFile = event.target.files?.[0]
+  async function handleStartCamera() {
+    setCameraError('')
 
-    if (!selectedFile || !selectedFile.type.startsWith('image/')) {
+    try {
+      if (!navigator.mediaDevices?.getUserMedia) {
+        throw new Error('Câmera indisponível neste navegador.')
+      }
+
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: { ideal: 'environment' } },
+        audio: false,
+      })
+
+      streamRef.current = stream
+      videoRef.current.srcObject = stream
+      await videoRef.current.play()
+      setCameraActive(true)
+    } catch {
+      setCameraError(
+        'Não foi possível acessar a câmera. Confira a permissão do navegador.',
+      )
+    }
+  }
+
+  function handleStopCamera() {
+    streamRef.current?.getTracks().forEach((track) => track.stop())
+    streamRef.current = null
+
+    if (videoRef.current) {
+      videoRef.current.srcObject = null
+    }
+
+    setCameraActive(false)
+  }
+
+  async function handleCapture() {
+    const video = videoRef.current
+    const canvas = canvasRef.current
+
+    if (!video || !canvas || !video.videoWidth) {
       return
     }
 
-    setFile(selectedFile)
-    setPreview(URL.createObjectURL(selectedFile))
+    const scale = Math.min(
+      1,
+      1200 / video.videoWidth,
+      1200 / video.videoHeight,
+    )
+
+    canvas.width = Math.round(video.videoWidth * scale)
+    canvas.height = Math.round(video.videoHeight * scale)
+
+    const context = canvas.getContext('2d')
+    context.drawImage(video, 0, 0, canvas.width, canvas.height)
+
+    const imageBlob = await new Promise((resolve) => {
+      canvas.toBlob(resolve, 'image/jpeg', 0.85)
+    })
+
+    if (!imageBlob) {
+      setCameraError('Não foi possível capturar a imagem. Tente novamente.')
+      return
+    }
+
+    const capturedFile = new File(
+      [imageBlob],
+      `captura-${Date.now()}.jpg`,
+      { type: 'image/jpeg' },
+    )
+
+    setFile(capturedFile)
+    setPreview(canvas.toDataURL('image/jpeg', 0.85))
+    setCameraError('')
     setStorageError('')
-    analyze(selectedFile)
+    analyze(capturedFile)
+  }
+
+  function handleRetake() {
+    setFile(null)
+    setPreview('')
+    setStorageError('')
   }
 
   function handleAddSubject() {
@@ -104,23 +159,22 @@ function CameraApp() {
     setNewSubject('')
   }
 
-  async function handleSave() {
-    if (!file || !result) {
+  function handleSave() {
+    if (!file || !result || !preview || !subject) {
       return
     }
 
-    try {
-      const savedImage = await imageToDataUrl(preview)
-      const newCapture = {
-        id: crypto.randomUUID(),
-        name: file.name,
-        subject,
-        preview: savedImage,
-        score: result.score,
-        date: new Date().toLocaleDateString('pt-BR'),
-      }
-      const updatedCaptures = [newCapture, ...captures]
+    const newCapture = {
+      id: crypto.randomUUID(),
+      name: file.name,
+      subject,
+      preview,
+      score: result.score,
+      date: new Date().toLocaleDateString('pt-BR'),
+    }
+    const updatedCaptures = [newCapture, ...captures]
 
+    try {
       localStorage.setItem(
         'nextwave-captures',
         JSON.stringify(updatedCaptures),
@@ -128,6 +182,7 @@ function CameraApp() {
       setCaptures(updatedCaptures)
       setFile(null)
       setPreview('')
+      setStorageError('')
     } catch {
       setStorageError(
         'Não foi possível salvar. O armazenamento do navegador pode estar cheio.',
@@ -171,7 +226,7 @@ function CameraApp() {
             Olá, {user.split(' ')[0]}!
           </h1>
           <p className="mt-2 max-w-2xl text-sm text-[#4d3a6b]">
-            Envie uma imagem da aula, receba dicas e organize suas capturas por
+            Capture uma imagem da aula, receba dicas e organize suas fotos por
             matéria.
           </p>
         </div>
@@ -186,36 +241,81 @@ function CameraApp() {
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <section className="rounded-[20px] border-2 border-[#79667e] bg-[#79667e49] p-5 shadow-md sm:p-7">
-          <h2 className="mb-2 text-center text-2xl font-bold">Nova captura</h2>
+          <h2 className="mb-2 text-center text-2xl font-bold">
+            Nova captura
+          </h2>
           <p className="mb-5 text-sm text-[#4d3a6b]">
-            Selecione uma foto de lousa, slide ou material.
+            Ative a câmera e capture uma foto de lousa, slide ou material.
           </p>
 
-          <label
-            className="flex min-h-48 cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-[#79667e] bg-[#dcd7d5] p-4 text-center transition hover:bg-[#d1c9c8]"
-            htmlFor="capture-file"
-          >
-            {preview ? (
+          <div className="flex min-h-48 flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed border-[#79667e] bg-[#dcd7d5] p-4 text-center">
+            {!cameraActive && !preview && (
+              <p className="text-sm text-[#4d3a6b]">
+                Ative a câmera para começar.
+              </p>
+            )}
+
+            {preview && (
               <img
                 className="max-h-60 max-w-full rounded-lg object-contain"
                 src={preview}
-                alt="Prévia da imagem selecionada"
+                alt="Prévia da imagem capturada"
               />
-            ) : (
-              <>
-                <strong>Selecionar foto</strong>
-                <span className="text-xs">JPG, PNG ou WEBP</span>
-              </>
             )}
 
-            <input
-              className="sr-only"
-              id="capture-file"
-              type="file"
-              accept="image/*"
-              onChange={handleFileChange}
+            <video
+              ref={videoRef}
+              className={`${
+                cameraActive && !preview ? 'block' : 'hidden'
+              } max-h-60 w-full rounded-lg bg-black object-contain`}
+              autoPlay
+              playsInline
+              muted
             />
-          </label>
+
+            <canvas ref={canvasRef} className="hidden" />
+          </div>
+
+          {cameraError && (
+            <p className="mt-3 text-sm text-red-800" role="alert">
+              {cameraError}
+            </p>
+          )}
+
+          <div className="mt-4 flex flex-wrap gap-2">
+            <button
+              className="flex-1 rounded-lg border border-[#79667e] px-3 py-2 text-sm transition hover:bg-[#79667e49] disabled:opacity-50"
+              onClick={handleStartCamera}
+              disabled={cameraActive}
+            >
+              {cameraActive ? 'Câmera ativa' : 'Ativar câmera'}
+            </button>
+
+            <button
+              className="flex-1 rounded-lg bg-[#79667e] px-3 py-2 text-sm font-semibold text-white transition hover:opacity-80 disabled:cursor-not-allowed disabled:opacity-50"
+              onClick={handleCapture}
+              disabled={!cameraActive || loading}
+            >
+              {loading ? 'Analisando…' : 'Capturar foto'}
+            </button>
+
+            <button
+              className="rounded-lg border border-[#79667e] px-3 py-2 text-sm transition hover:bg-[#79667e49] disabled:opacity-50"
+              onClick={handleStopCamera}
+              disabled={!cameraActive}
+            >
+              Desativar câmera
+            </button>
+
+            {preview && (
+              <button
+                className="rounded-lg border border-[#79667e] px-3 py-2 text-sm transition hover:bg-[#79667e49]"
+                onClick={handleRetake}
+              >
+                Capturar novamente
+              </button>
+            )}
+          </div>
 
           <div className="mt-5 flex flex-col gap-2">
             <label className="text-sm font-semibold" htmlFor="subject">
@@ -284,7 +384,7 @@ function CameraApp() {
 
           <button
             className="mt-4 w-full rounded-lg border-2 border-[#dcd7d5] bg-[#79667e] px-4 py-3 font-semibold text-white transition hover:opacity-80 disabled:cursor-not-allowed disabled:opacity-50"
-            disabled={!file || loading || !result}
+            disabled={!file || loading || !result || !subject}
             onClick={handleSave}
           >
             Salvar na matéria
@@ -325,11 +425,11 @@ function CameraApp() {
                           />
                           <div className="min-w-0 flex-1 space-y-1">
                             <strong className="block truncate text-sm">
-                                {capture.name}
+                              {capture.name}
                             </strong>
                             <div className="text-xs">{capture.date}</div>
                             <div className="text-xs">
-                                Qualidade: {capture.score}%
+                              Qualidade: {capture.score}%
                             </div>
                           </div>
                           <button
@@ -350,6 +450,10 @@ function CameraApp() {
         </section>
       </div>
 
+      <p className="mt-5 text-center text-xs text-[#4d3a6b]">
+        A análise é simulada por uma API mockada. A câmera é acessada pelo
+        navegador, e as fotos ficam neste dispositivo.
+      </p>
     </main>
   )
 }
