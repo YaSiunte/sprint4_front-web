@@ -450,10 +450,6 @@ function CameraApp() {
         </section>
       </div>
 
-      <p className="mt-5 text-center text-xs text-[#4d3a6b]">
-        A análise é simulada por uma API mockada. A câmera é acessada pelo
-        navegador, e as fotos ficam neste dispositivo.
-      </p>
     </main>
   )
 }
